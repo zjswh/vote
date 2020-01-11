@@ -35,5 +35,18 @@ module.exports = (sequelize, DataTypes) => {
     return info
   };
 
+  program_vote.getList = async (where,page,num)=>{
+    const limit = parseInt(num)  || 10
+    const offset = (page - 1) * num 
+    let result = await program_vote.findAndCountAll({
+        where,
+        limit,
+        offset,
+        attributes : ['id','access_id','topic','vote_intro','vote_type',
+        'vote_way','vote_choose_num','banner','start_time','end_time','is_rank','create_time']
+    })
+    return result
+  };
+
   return program_vote;
 };
