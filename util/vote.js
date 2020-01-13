@@ -221,26 +221,26 @@ module.exports = {
 
     getList : async (where,page,num) => {
         const topic = where.topic || ''
-        if(topic){
+        if(!_.isEmpty(topic)){
+            console.log(topic)
             where.topic = {
               [Sequelize.Op.like]: '%'+topic+'%'
             }
         }
         let  result = await program_vote.getList(where,page,num)
-    
+        result = format.modelToJson(result)
+
         let list = result.rows
         let count = result.count
 
         if(!_.isEmpty(list)){
             //获取cname
             const cname = await tool.getCname(1000)
-            list = list.toJSON()
-            list.forEach((val,key)=>{
-                const url = cname + '/vote/?id='+val.id+'&uin='+val['access_id']
-                list[key]['url'] = url
-            })
-            console.log(list)
+            for (let p of list) {
+                p.previewUrl = cname + '/vote/?id='+p.id+'&uin='+p.access_id
+            }
         }
+
         return {
             list,
             count
