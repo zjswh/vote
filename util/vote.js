@@ -111,13 +111,21 @@ const getRank = async (id) => {
     let voteNum = await redis.zrevrangebyscoreAsync('VoteNum:'+id,'+inf','-inf','WITHSCORES')
     voteNum = format.arrayToObj(voteNum)
     const list = await getContent(id)
+    const data = {}
     list.forEach(val=>{
         if(!_.has(voteNum,val.id)){
             voteNum[val.id] = 0
         }
+        data['option_'+val.id] = val
     })
-    
-    
+    const rankList = []
+    for(k in voteNum){
+        let info = data['option_'+k]
+        info.vote_num = voteNum[k]
+        rankList.push(info)
+    }
+
+    return rankList
 }
 const getContent = async (id) => {
     const key = 'activity_vote_content:' + id
@@ -131,7 +139,49 @@ const getContent = async (id) => {
     return list
 }
 
+const getVoteSource = async (id) => {
+    //根据类型返回数据
+    const count = await program_vote_option_info.count({
+        where : {
+            optionId : id
+        }
+    })
+    return [{
+        count,
+        type:'live'
+    }]
+}
+
+const getOptionDetail = async (where,page,num) => {
+    const condition = {
+        optionId : where.optionId
+    }
+    if(where.userNick){
+        condition.userNick = {
+            [Sequelize.Op.like]: '%'+where.userNick+'%'
+        }
+    }
+    if(where.phone){
+        condition.phone = {
+            [Sequelize.Op.like]: '%'+where.phone+'%'
+        }
+    }
+
+    if(where.start_time && where.end_time){
+        const startTime = (new Date(where.start_time)).getTime() / 1000
+        const endTime =  (new Date(where.end_time)).getTime() / 1000
+        console.log(startTime,endTime)
+        condition.voteTime = {
+            [Sequelize.Op.between]:[startTime,endTime]
+        }
+    }
+    const list = await program_vote_option_info.getList(condition,page,num)
+    return list
+}
+
 module.exports = {
+    getOptionDetail,
+    getVoteSource,
     getRank,
     saveVoteRecordToDb,
     userVote,

@@ -187,7 +187,64 @@ router.get('/getRankAdmin',async (req,res) => {
     }
     const {id} = req.query
     const list = await voteUtil.getRank(id)
-    return res.json(format.data(111))
+    return res.json(format.data(list))
+})
+
+/**
+ * 获取选项投票详情
+ * @route GET /vote/getVoteDetailByWay
+ * @group vote
+ * @summary 获取选项投票详情
+ * @param {string} token.header.required - token
+ * @param {integer} content_id.query.required - 选项content_id
+ * @returns {object} 200 - An array of vote info
+ * @returns {Error}  default - Unexpected error
+ */
+router.get('/getVoteDetailByWay',async(req,res)=>{
+    const {content_id} = req.query
+    const info = await voteUtil.getVoteSource(content_id)
+    return res.json(format.data(info))
+})
+
+/**
+ * 获取投票选项详情列表
+ * @route GET /vote/getOptionVoteDetail
+ * @group vote
+ * @summary 获取投票选项详情列表
+ * @param {string} token.header.required - token
+ * @param {integer} optionId.query.required - 选项optionId
+ * @param {string} phone.query - 手机号
+ * @param {string} userNick.query - 用户昵称
+ * @param {string} start_time.query - 开始时间
+ * @param {string} end_time.query - 结束时间
+ * @param {integer} page.query - 页数
+ * @param {integer} num.query - 显示数
+ * @returns {object} 200 - An array of vote info
+ * @returns {Error}  default - Unexpected error
+ */
+router.get('/getOptionVoteDetail',async(req,res)=>{
+    const {optionId,phone,userNick,start_time,end_time} = req.query
+    let page = req.query.page || 1
+    let num = req.query.num || 10
+
+    const where ={
+        optionId
+    }
+    if(phone){
+        where.phone = phone
+    }
+    if(userNick){
+        where.userNick = userNick
+    }
+    if(start_time && end_time){
+        where.start_time = start_time
+        where.end_time = end_time
+    }
+    const result = await voteUtil.getOptionDetail(where,page,num)
+    return res.json(format.data({
+        list : result.rows,
+        count : result.count
+    }))
 })
 
 /**
