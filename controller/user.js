@@ -11,7 +11,7 @@ const userUtil = require('../util/user')
  * B端登录
  * @route POST /user/consoleLogins
  * @group user
- * @summary 获取投票列表
+ * @summary B端登录
  * @param {integer} phone.param.required - phone
  * @param {string} password.param.required - password
  * @returns {object} 200 - An array of vote info
@@ -24,6 +24,23 @@ router.post('/consoleLogins',async (req,res)=>{
         token,
         version : 'test'
     }))
+    
+})
+
+/**
+ * C端登录
+ * @route POST /user/liveLogin
+ * @group user
+ * @summary C端登录
+ * @param {integer} phone.param.required - phone
+ * @param {string} password.param.required - password
+ * @returns {object} 200 - An array of vote info
+ * @returns {Error}  default - Unexpected error
+ */
+router.post('/liveLogin',async (req,res)=>{
+    const {phone,password} = req.body
+    const token = await userUtil.liveLogin(phone,password)
+    return res.json(format.data(token))
     
 })
 

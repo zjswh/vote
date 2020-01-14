@@ -6,7 +6,7 @@ const voteUtil = require('../util/vote')
 const format = require('../lib/format')
 const message = require('../config/message')
 
-const checkAdminLogin = async (req,res,next)=>{
+const checkAdminLogin = async (req,res)=>{
     const userInfo = await userUtil.getUserInfo(req)
     if(!userInfo || !userInfo.accountId){
         return {}
@@ -14,7 +14,7 @@ const checkAdminLogin = async (req,res,next)=>{
     return userInfo
 }
 
-const checkLogin = async (req,res,next)=>{
+const checkLogin = async (req,res)=>{
     const userInfo = await userUtil.getUserInfo(req)
     if(!userInfo){
         return {}
@@ -123,8 +123,8 @@ router.post('/update',async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getList',async (req,res,next) => {
-    let userInfo = await checkAdminLogin(req,res,next)
+router.get('/getList',async (req,res) => {
+    let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
     }
@@ -157,7 +157,7 @@ router.get('/getList',async (req,res,next) => {
  * @returns {Error}  default - Unexpected error
  */
 router.get('/getContent',async (req,res) => {
-    let userInfo = await checkAdminLogin(req,res,next)
+    let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
     }
@@ -172,7 +172,7 @@ router.get('/getContent',async (req,res) => {
 
 /**
  * 获取投票数据详情
- * @route GET /vote/getContent
+ * @route GET /vote/getRankAdmin
  * @group vote
  * @summary 获取投票数据详情
  * @param {string} token.header.required - token
@@ -181,12 +181,13 @@ router.get('/getContent',async (req,res) => {
  * @returns {Error}  default - Unexpected error
  */
 router.get('/getRankAdmin',async (req,res) => {
-    let userInfo = await checkAdminLogin(req,res,next)
+    let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
     }
     const {id} = req.query
-
+    const list = await voteUtil.getRank(id)
+    return res.json(format.data(111))
 })
 
 /**
@@ -270,6 +271,7 @@ router.get('/getInfoByInclude',async (req,res)=>{
  * @route GET /vote/getInfoById
  * @group vote
  * @summary 获取投票信息
+ * @param {string} token.header - token
  * @param {integer} id.query.required - 投票id
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
@@ -296,6 +298,7 @@ router.get('/getInfoById',async (req,res)=>{
  * @route POST /vote/userVote
  * @group vote
  * @summary 投票
+ * @param {string} token.header.required - token
  * @param {integer} id.formData.required - 选项id
  * @param {integer} vote_id.formData.required - 投票id
  * @returns {object} 200 - An array of vote info
@@ -303,10 +306,10 @@ router.get('/getInfoById',async (req,res)=>{
  */
 router.post('/userVote',async (req,res) => {
     const {id,vote_id} = req.body
-    // const userInfo = await checkLogin(req,res)
-    // if(_.isEmpty(userInfo)){
-    //     return res.json(format.data('',1,message.nologin))
-    // }
+    const userInfo = await checkLogin(req,res)
+    if(_.isEmpty(userInfo)){
+        return res.json(format.data('',1,message.nologin))
+    }
     //判断当前投票的选项
     const content = await voteUtil.getContentInfo(vote_id)  
     let flag = 0
@@ -318,9 +321,50 @@ router.post('/userVote',async (req,res) => {
     if(flag == 0){
         return res.json(format.data('',9,'选项不存在'))
     }
-    //判断用户是否投过票
-    
-    return res.json(format.data(flag))
+    //投票信息
+    const voteInfo = await voteUtil.getInfo(vote_id)
+
+    //投票状态判断
+    const voteStatus = await voteUtil.checkVoteState(voteInfo['start_time'],voteInfo['end_time'])
+    if(voteStatus == 0){
+        return res.json(format.data('',2,'投票未开始'))
+    }
+    if(voteStatus == 2){
+        return res.json(format.data('',2,'投票已结束'))
+    }
+
+    //ip限制
+    const checkIp = await voteUtil.checkIp(req,id)
+    if(checkIp === false){
+        return res.json(format.data('',3,'太频繁，稍后重试'))
+    }
+   
+    //投票数加一
+    const result = await voteUtil.userVote(userInfo,id,voteInfo)
+    //重复投票
+    if(result.status == 2){
+        return res.json(format.data('',3,'重复投票'))
+    }
+
+    //次数用完
+    if(result.status == 3){
+        return res.json(format.data('',3,'次数用完'))
+    }
+
+    return res.json(format.data(result.msg))
+})
+
+/**
+ * 投票记录入库
+ * @route POST /vote/saveVoteRecordToDb
+ * @group vote
+ * @summary 投票记录入库
+ * @returns {object} 200 - An array of vote info
+ * @returns {Error}  default - Unexpected error
+ */
+router.post('/saveVoteRecordToDb',async(req,res)=>{
+    voteUtil.saveVoteRecordToDb()
+    return res.json(format.data('入库成功'))
 })
 
 module.exports = router

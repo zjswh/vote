@@ -3,10 +3,10 @@ const tool = require('./tool')
 const format = require('../lib/format')
 const _ = require('lodash')
 
-const {program_vote,program_vote_content,program_vote_include,Sequelize} = require('../models')
+const {program_vote,program_vote_content,program_vote_include,program_vote_option_info,Sequelize} = require('../models')
 
-const  checkVoteState = (start_time,end_time)=>{
-    const now = Math.round((new Date()).getTime()/1000)
+const  checkVoteState = async (start_time,end_time)=>{
+    const now = Math.round((Date.now()) / 1000)
     let  vote_state = 0
     if(end_time < now){
         vote_state = 2  //过期
@@ -18,44 +18,126 @@ const  checkVoteState = (start_time,end_time)=>{
     return vote_state;
 }
 
-module.exports = {
-    getInfo : async (id) =>{
-        const key = 'VoteConfig:' + id
-        let info = await redis.getAsync(key)
+const getInfo = async (id)=>{
+    const key = 'VoteConfig:' + id
+    let info = await redis.getAsync(key)
+    if(!info){
+        info = await program_vote.getInfo(id)
         if(!info){
-            info = await program_vote.getInfo(id)
-            if(!info){
-                redis.setAsync(key,JSON.stringify({}))
-                redis.expireAsync(key,86400)
-                return {}
-            }
-            info = info.toJSON()
-            if(info){
-                info.start_time = (new Date(info.start_time)).getTime() / 1000
-                info.end_time = (new Date(info.end_time)).getTime() / 1000
-            }
-            redis.setAsync(key,JSON.stringify(info))
-        }else{
-            info = JSON.parse(info)
-            if(_.isEmpty(info)){
-                return {}
-            }
+            redis.setAsync(key,JSON.stringify({}))
+            redis.expireAsync(key,86400)
+            return {}
         }
-      
-        //检测状态
-        info.vote_state = checkVoteState(info.start_time,info.end_time)
-        return info
-    },
+        info = info.toJSON()
+        if(info){
+            info.start_time = (new Date(info.start_time)).getTime() / 1000
+            info.end_time = (new Date(info.end_time)).getTime() / 1000
+        }
+        redis.setAsync(key,JSON.stringify(info))
+    }else{
+        info = JSON.parse(info)
+        if(_.isEmpty(info)){
+            return {}
+        }
+    }
+  
+    //检测状态
+    info.vote_state = await checkVoteState(info.start_time,info.end_time)
+    return info
+}
 
-    getContentInfo : async (id,userId = '') =>{
-        const key = 'activity_vote_content:' + id
-        let list = await redis.getAsync(key)
-        if(!list){
-            list = await program_vote_content.getContentInfo(id)
-            redis.setAsync(key,JSON.stringify(list))
-        }else{
-            list = JSON.parse(list)
+const userVote = async (userInfo,id,voteInfo) => {
+    const vote_id = voteInfo.id
+    const now = Math.round((Date.now()) / 1000)
+    const user_id = userInfo.id
+
+    const key = "VoteList:"+vote_id
+    let list = await redis.hgetAsync(key,user_id)
+    list = list ? JSON.parse(list) : []
+    if(!_.isEmpty(list) && list.includes(id)){
+        return {status:2}  //重复投票
+    }
+    //判断已投数
+    const useNum = list.length
+    if(useNum >= voteInfo.vote_choose_num){
+        return {status:3} //次数用完
+    }
+    list.push(parseInt(id)) 
+    await redis.hsetAsync(key,user_id,JSON.stringify(list))
+
+    //投票数加一
+    const voteKey = "VoteNum:"+vote_id
+    const totalKey = "user_vote_num:"+vote_id
+    await redis.zincrbyAsync(voteKey,1,id)
+    await redis.zaddAsync(totalKey,1,user_id)
+    //存储投票记录
+    const info = {
+        userNick: userInfo.userNick,
+        loginType: userInfo.loginType,
+        voteTime: now,
+        userId: user_id,
+        phone: userInfo.phone,
+        userHeadImg: userInfo.userHeadImg,
+        uin: userInfo.uin,
+        voteId: vote_id,
+        optionId: id,
+        type : 'link'
+    }
+    redis.rpushAsync('VoteOptionInfo',JSON.stringify(info))
+    const total = parseInt(await redis.zscoreAsync(voteKey,id))
+    const count = parseInt(await redis.zcardAsync(totalKey)) || 0//参与总人数
+    //发送dms
+    return {
+        status : 1,
+        msg: {
+            total,
+            count
         }
+    }
+}
+
+const saveVoteRecordToDb = async ()=>{
+    const key = 'VoteOptionInfo'
+    const len = await redis.llenAsync(key)
+    const size = len > 1000 ? 1000 : len
+    for(let i=0;i<size;i++){
+        let info = await redis.lpopAsync(key)
+        info = JSON.parse(info)
+        program_vote_option_info.create(info)
+    }
+}
+
+const getRank = async (id) => {
+    let voteNum = await redis.zrevrangebyscoreAsync('VoteNum:'+id,'+inf','-inf','WITHSCORES')
+    voteNum = format.arrayToObj(voteNum)
+    const list = await getContent(id)
+    list.forEach(val=>{
+        if(!_.has(voteNum,val.id)){
+            voteNum[val.id] = 0
+        }
+    })
+    
+    
+}
+const getContent = async (id) => {
+    const key = 'activity_vote_content:' + id
+    let list = await redis.getAsync(key)
+    if(!list){
+        list = await program_vote_content.getContentInfo(id)
+        redis.setAsync(key,JSON.stringify(list))
+    }else{
+        list = JSON.parse(list)
+    }
+    return list
+}
+
+module.exports = {
+    getRank,
+    saveVoteRecordToDb,
+    userVote,
+    getInfo,
+    getContentInfo : async (id,userId = '') =>{
+        const list = await getContent(id)
         //获取每个项目的票数
         let voteNum = await redis.zrevrangebyscoreAsync('VoteNum:'+id,'+inf','-inf','WITHSCORES')
         voteNum = format.arrayToObj(voteNum)
@@ -67,11 +149,12 @@ module.exports = {
                 content_ids = JSON.parse(data) 
             }
         }
+
         list.forEach((val,key) => {
             //判断用户是否投票
             list[key].is_vote = 0
             list[key].voteNum = voteNum[val.id]
-            if(userId && content_ids && _.indexOf(content_ids,val.id) != -1){
+            if(userId && content_ids && content_ids.includes(val.id)){
                 list[key].is_vote = 1
             }
         })
@@ -199,11 +282,6 @@ module.exports = {
         }
         const vote_id = res.id
         content.forEach(async value => {
-            res = await program_vote_content.findOne({
-                where : {
-                    id : value.id
-                }
-            })
             const contentValue = {
                 title : value.title,
                 intro : value.intro,
@@ -214,15 +292,26 @@ module.exports = {
                 sort : value.sort || 0
 
             }
-            res = await res.update(contentValue)
+            if( value.id ){
+                res = await program_vote_content.findOne({
+                    where : {
+                        id : value.id
+                    }
+                })
+                res = await res.update(contentValue)
+            }else{
+                contentValue.vote_id = vote_id
+                res = await program_vote_content.create(contentValue)
+            }
         })
+        redis.delAsync("VoteConfig:"+vote_id)
+        redis.delAsync("activity_vote_content:"+vote_id)
         return vote_id
     },
 
     getList : async (where,page,num) => {
         const topic = where.topic || ''
         if(!_.isEmpty(topic)){
-            console.log(topic)
             where.topic = {
               [Sequelize.Op.like]: '%'+topic+'%'
             }
@@ -245,5 +334,30 @@ module.exports = {
             list,
             count
         }
+    },
+    checkIp : async (req,id) => {
+        const ip = await format.getIp(req)
+        const key = 'set_vote_time_'+ip+'_'+id
+        const flag = await redis.getAsync(key)
+        if(flag){
+            return false
+        }
+        redis.setAsync(key,1)
+        redis.expireAsync(key,10)
+        return true
+    },
+
+    checkVoteState,
+    checkUserVote : async (user_id,id,vote_id)=>{
+        const key = "VoteList:"+vote_id
+        const list = await redis.hgetAsync(key,user_id)
+        if(!list){ 
+            return true
+        }
+        list = JSON.parse(list)
+        if(list.includes(id)){
+            return false 
+        }
+        return true 
     }
 }

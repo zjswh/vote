@@ -26,6 +26,7 @@ module.exports = (sequelize, DataTypes) => {
             vote_id : id,
             state : 1
         },
+        attributes : ['id','vote_id','title','intro','pic','vote_num','sort','videoUrl','videoCoverImg'],
         order : [['sort', 'ASC'],['id', 'ASC']]
     })
     return list
