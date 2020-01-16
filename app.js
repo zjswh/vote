@@ -6,7 +6,8 @@ const voteRouter = require('./controller/vote')
 const format = require('./lib/format')
 const bodyParser = require('body-parser')
 const swagger = require('./swagger/generator')
-const validate = require('express-validation');
+// const swagger = require('./swagger/index')
+const validate = require('express-validation')
 const _ = require('lodash')
 
 app.use(express.json())

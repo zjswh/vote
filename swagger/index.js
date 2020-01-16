@@ -1,6 +1,7 @@
 const swaggerJSDoc = require('swagger-jsdoc')
 const swaggerUi = require('swagger-ui-express')
-const config = require('../config/config').swagger
+const {CONFIG} = require('../config/config')
+const config = CONFIG.swagger
 
 
 // 配置 swagger-jsdoc

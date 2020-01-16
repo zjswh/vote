@@ -1,8 +1,2 @@
-const axios = require('axios')
-
-const curl = async (url) =>{
-    return await axios.get(url)
-}
-const res =  curl('http://127.0.0.1:3000/vote/getInfoById?id=61')
-
-console.log(res)
+let data = '2020-01-18T16:00:00.000Z'
+console.log(new Date(data))

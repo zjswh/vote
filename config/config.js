@@ -40,7 +40,13 @@ if(env == 'development'){
       password: "kkyoo_aodian_2011_06_11",
       database: "broadcast_cloud",
       host: "121.42.227.165",
-      dialect: "mysql"
+      dialect: "mysql",
+      pool: {
+          max: 50,
+          min: 0,
+          idle: 10000
+      },
+      timezone: '+08:00' //东八时区
     },
     swagger : {
       openapi: '3.0.0',

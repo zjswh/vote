@@ -1,4 +1,6 @@
 'use strict';
+const moment = require('moment')
+
 module.exports = (sequelize, DataTypes) => {
   const program_vote = sequelize.define('program_vote', {
     access_id: DataTypes.BIGINT,
@@ -10,8 +12,18 @@ module.exports = (sequelize, DataTypes) => {
     vote_way: DataTypes.INTEGER,
     vote_choose_num: DataTypes.BIGINT,
     banner: DataTypes.STRING,
-    start_time: DataTypes.DATE,
-    end_time: DataTypes.DATE,
+    start_time: {
+      type: DataTypes.DATE,
+      get() {
+          return moment(this.getDataValue('start_time')).format('YYYY-MM-DD HH:mm:ss');
+      }
+    },
+    end_time: {
+      type: DataTypes.DATE,
+      get() {
+          return moment(this.getDataValue('end_time')).format('YYYY-MM-DD HH:mm:ss');
+      }
+    },
     is_rank: DataTypes.INTEGER,
     count: DataTypes.BIGINT,
     create_time: DataTypes.DATE,
@@ -43,7 +55,8 @@ module.exports = (sequelize, DataTypes) => {
         limit,
         offset,
         attributes : ['id','access_id','topic','vote_intro','vote_type',
-        'vote_way','vote_choose_num','banner','start_time','end_time','is_rank','create_time']
+        'vote_way','vote_choose_num','banner','start_time','end_time','is_rank','create_time'],
+        order: [['create_time', 'DESC']]
     })
     return result
   };
