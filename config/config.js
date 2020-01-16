@@ -13,7 +13,13 @@ if(env == 'test'){
       password: "kkyoo_aodian_2011_06_11",
       database: "gdy_activity_test",
       host: "rm-bp18a48nlw7l184ed.mysql.rds.aliyuncs.com",
-      dialect: "mysql"
+      dialect: "mysql",
+      pool: {
+          max: 50,
+          min: 0,
+          idle: 10000
+      },
+      timezone: '+08:00' //东八时区
     },
     swagger : {
       openapi: '3.0.0',
