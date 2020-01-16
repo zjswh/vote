@@ -13,9 +13,7 @@ module.exports = {
         }
 
         const realToken = jwt.decode(token, key).token
-
         const userInfo = await redis.getAsync(realToken)
-
         return JSON.parse(userInfo)
     },
     consoleLogin : async (phone,password) => {

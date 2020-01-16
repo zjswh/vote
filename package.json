@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "set NODE_ENV=test&& nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "cross-env NODE_ENV=development node app.js",
+    "test": "cross-env NODE_ENV=test node app.js"
   },
   "author": "",
   "license": "ISC",
@@ -14,7 +15,10 @@
     "bluebird": "^3.7.2",
     "body-parser": "^1.19.0",
     "boom": "^7.3.0",
+    "cross-env": "^6.0.3",
     "express": "^4.17.1",
+    "express-validation": "^1.0.3",
+    "joi": "^14.3.1",
     "jwt-simple": "^0.5.6",
     "lodash": "^4.17.15",
     "mysql": "^2.17.1",

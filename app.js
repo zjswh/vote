@@ -5,8 +5,9 @@ const userRouter = require('./controller/user')
 const voteRouter = require('./controller/vote')
 const format = require('./lib/format')
 const bodyParser = require('body-parser')
-// const swagger = require('./swagger/index')
 const swagger = require('./swagger/generator')
+const validate = require('express-validation');
+const _ = require('lodash')
 
 app.use(express.json())
 app.use(express.urlencoded({ extended : false }))
@@ -27,6 +28,10 @@ app.use((req,res)=>{
 
 app.use((err, req, res, next)=>{
   if(err){
+    if (err instanceof validate.ValidationError) {
+      const errmsg = _.first(_.first(err.errors).messages)
+      return res.status(err.status).json(format.data('',2,errmsg))
+    }
     return res.status(500).json(format.data('',9,'服务异常'))
   }
 })

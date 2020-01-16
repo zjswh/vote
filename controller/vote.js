@@ -5,6 +5,8 @@ const router = express.Router()
 const voteUtil = require('../util/vote')
 const format = require('../lib/format')
 const message = require('../config/message')
+var validate = require('express-validation');
+var validation = require('../validate/vote');
 
 const checkAdminLogin = async (req,res)=>{
     const userInfo = await userUtil.getUserInfo(req)
@@ -28,7 +30,7 @@ const checkLogin = async (req,res)=>{
  * @group vote 
  * @summary 创建投票
  * @param {string} token.header.required - token
- * @param {string} topic.formData.required - 投票主题
+ * @param {string} topic.formData.required - 投票主题 //.required
  * @param {string} vote_intro.formData.required - 投票介绍
  * @param {integer} vote_type.formData.required - 投票类型 每日 单次
  * @param {integer} vote_way.formData.required - 投票方式 单选 多选
@@ -41,7 +43,7 @@ const checkLogin = async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/create',async (req,res)=>{
+router.post('/create',validate(validation.create),validate(validation.create), async (req,res)=>{
     const userInfo =  await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -88,7 +90,7 @@ router.post('/create',async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/update',async (req,res)=>{
+router.post('/update',validate(validation.update),async (req,res)=>{
     const userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -123,7 +125,7 @@ router.post('/update',async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getList',async (req,res) => {
+router.get('/getList',validate(validation.getList),async (req,res) => {
     let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -156,7 +158,7 @@ router.get('/getList',async (req,res) => {
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getContent',async (req,res) => {
+router.get('/getContent',validate(validation.getContent),async (req,res) => {
     let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -180,7 +182,7 @@ router.get('/getContent',async (req,res) => {
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getRankAdmin',async (req,res) => {
+router.get('/getRankAdmin',validate(validation.getRankAdmin),async (req,res) => {
     let userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -200,7 +202,7 @@ router.get('/getRankAdmin',async (req,res) => {
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getVoteDetailByWay',async(req,res)=>{
+router.get('/getVoteDetailByWay',validate(validation.getVoteDetailByWay),async(req,res)=>{
     const {content_id} = req.query
     const info = await voteUtil.getVoteSource(content_id)
     return res.json(format.data(info))
@@ -222,7 +224,7 @@ router.get('/getVoteDetailByWay',async(req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getOptionVoteDetail',async(req,res)=>{
+router.get('/getOptionVoteDetail',validate(validation.getOptionVoteDetail),async(req,res)=>{
     const {optionId,phone,userNick,start_time,end_time} = req.query
     let page = req.query.page || 1
     let num = req.query.num || 10
@@ -253,13 +255,13 @@ router.get('/getOptionVoteDetail',async(req,res)=>{
  * @group vote 
  * @summary 保存引用
  * @param {string} token.header.required - token
- * @param {integer} vote_id.formData.required - 投票vote_id
+ * @param {integer} vote_id.formData - 投票vote_id
  * @param {integer} include_id.formData.required - 引用id
  * @param {string} type.formData.required - 引用类型
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/saveConfig',async (req,res)=>{
+router.post('/saveConfig',validate(validation.saveConfig),async (req,res)=>{
     const userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -285,7 +287,7 @@ router.post('/saveConfig',async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getIncludeFromVoteId',async (req,res)=>{
+router.get('/getIncludeFromVoteId',validate(validation.getIncludeFromVoteId),async (req,res)=>{
     const userInfo = await checkAdminLogin(req,res)
     if(_.isEmpty(userInfo)){
         return res.json(format.data('',1,message.nologin))
@@ -308,7 +310,7 @@ router.get('/getIncludeFromVoteId',async (req,res)=>{
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getInfoByInclude',async (req,res)=>{
+router.get('/getInfoByInclude',validate(validation.getInfoByInclude),async (req,res)=>{
     const {include_id,type} = req.query
     const voteId = await voteUtil.getIncludeVoteId(include_id,type)
     if(!voteId){
@@ -329,11 +331,11 @@ router.get('/getInfoByInclude',async (req,res)=>{
  * @group vote
  * @summary 获取投票信息
  * @param {string} token.header - token
- * @param {integer} id.query.required - 投票id
+ * @param {integer} id.query - 投票id
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.get('/getInfoById',async (req,res)=>{
+router.get('/getInfoById',validate(validation.getInfoById) ,async (req, res)=>{
     const {id} = req.query
     const userInfo = await checkLogin(req)
     const userId = userInfo.id || 0
@@ -356,12 +358,12 @@ router.get('/getInfoById',async (req,res)=>{
  * @group vote
  * @summary 投票
  * @param {string} token.header.required - token
- * @param {integer} id.formData.required - 选项id
- * @param {integer} vote_id.formData.required - 投票id
+ * @param {integer} id.formData - 选项id
+ * @param {integer} vote_id.formData - 投票id
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/userVote',async (req,res) => {
+router.post('/userVote',validate(validation.userVote),async (req,res) => {
     const {id,vote_id} = req.body
     const userInfo = await checkLogin(req,res)
     if(_.isEmpty(userInfo)){

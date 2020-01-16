@@ -1,4 +1,5 @@
-const config = require('../config/config').swagger
+const {CONFIG} = require('../config/config')
+const config = CONFIG.swagger
 const path = require('path')
 
 // 配置 swagger-jsdoc
