@@ -12,7 +12,7 @@ module.exports = {
                     "application/json",
                     "application/xml"
                 ],
-                host: '127.0.0.1:3000',
+                host: config.host,
                 schemes: ['http', 'https'],
                 // swagger 页面基本信息 自由发挥
                 info: {

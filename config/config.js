@@ -22,6 +22,7 @@ if(env == 'test'){
       apis: [
           path.join(__dirname, '../controller/*.js')
       ],
+      host: 'vote.wxyswh.top',
       routerPath: '/api-docs'
     }
   }
@@ -48,6 +49,7 @@ if(env == 'development'){
       apis: [
           path.join(__dirname, '../controller/*.js')
       ],
+      host: '127.0.0.1:3000',
       routerPath: '/api-docs'
     }
   }
