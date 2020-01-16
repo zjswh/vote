@@ -29,10 +29,6 @@ const getInfo = async (id)=>{
             return {}
         }
         info = info.toJSON()
-        if(info){
-            info.start_time = (new Date(info.start_time)).getTime() / 1000
-            info.end_time = (new Date(info.end_time)).getTime() / 1000
-        }
         redis.setAsync(key,JSON.stringify(info))
     }else{
         info = JSON.parse(info)
@@ -40,7 +36,11 @@ const getInfo = async (id)=>{
             return {}
         }
     }
-  
+    
+    if(info){
+        info.start_time = (new Date(info.start_time)).getTime() / 1000
+        info.end_time = (new Date(info.end_time)).getTime() / 1000
+    }
     //检测状态
     info.vote_state = await checkVoteState(info.start_time,info.end_time)
     return info
