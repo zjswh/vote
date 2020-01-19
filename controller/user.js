@@ -6,25 +6,46 @@ const router = express.Router()
 const Op = Sequelize.Op
 const redis = require('../lib/redis')
 const userUtil = require('../util/user')
+var validate = require('express-validation');
+var validation = require('../validate/user');
 
 /**
  * B端登录
  * @route POST /user/consoleLogins
  * @group user
  * @summary B端登录
- * @param {integer} phone.param.required - phone
- * @param {string} password.param.required - password
+ * @param {integer} phone.formData.required - phone
+ * @param {string} password.formData.required - password
+ * @param {string} remember.formData - 登录状态保存时间
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/consoleLogins',async (req,res)=>{
-    const {phone,password} = req.body
-    const token = await userUtil.consoleLogin(phone,password)
-    return res.json(format.data({
-        token,
-        version : 'test'
-    }))
+router.post('/consoleLogins',validate(validation.consoleLogins),async (req,res)=>{
+    const {phone,password} = req.body 
+    const remember =  req.body.remember || 1
+    const result = await userUtil.consoleLogin(phone,password)
+    if(result.status == 1){
+        return res.json(format.data({
+            token:result.msg,
+            version : 'test'
+        }))
+    }
+    return res.json(format.data('',3,result.msg))
     
+})
+
+/**
+ * 获取登录信息
+ * @route GET /user/getLogin
+ * @group user
+ * @summary 获取登录信息
+ * @param {string} token.header.required - token
+ * @returns {object} 200 - An array of vote info
+ * @returns {Error}  default - Unexpected error
+ */
+router.get('/getLogin',async (req,res)=>{
+    const result = await userUtil.getUserInfo(req)
+    return res.json(format.data(result))
 })
 
 /**
@@ -32,12 +53,12 @@ router.post('/consoleLogins',async (req,res)=>{
  * @route POST /user/liveLogin
  * @group user
  * @summary C端登录
- * @param {integer} phone.param.required - phone
- * @param {string} password.param.required - password
+ * @param {integer} phone.formData.required - phone
+ * @param {string} password.formData.required - password
  * @returns {object} 200 - An array of vote info
  * @returns {Error}  default - Unexpected error
  */
-router.post('/liveLogin',async (req,res)=>{
+router.post('/liveLogin',validate(validation.consoleLogins),async (req,res)=>{
     const {phone,password} = req.body
     const token = await userUtil.liveLogin(phone,password)
     return res.json(format.data(token))

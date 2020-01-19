@@ -2,6 +2,8 @@ const jwt = require('jwt-simple')
 const redis = require('../lib/redis')
 const utility = require('utility')
 const uniqid = require('uniqid')
+const _ = require('lodash')
+const {user,lps_soldier,sequelize} = require('../models')
 const key = 'guangdianyun_key'
 const CRYPT_KEY = 'ac8d51aj'
 
@@ -11,30 +13,60 @@ module.exports = {
         if(!token){
             return {}
         }
-
-        const realToken = jwt.decode(token, key).token
+        const jwtInfo = jwt.decode(token, key)
+        if(!jwtInfo.expires || !jwtInfo.token){
+            return {}
+        }
+        const now = Math.round(Date.now() / 1000) 
+        if(jwtInfo.expires < now){
+            return {}
+        }
+        const realToken = jwtInfo.token
         const userInfo = await redis.getAsync(realToken)
+        if(!userInfo){
+            return {}
+        }
         return JSON.parse(userInfo)
     },
-    consoleLogin : async (phone,password) => {
+    consoleLogin : async (phone,password,remember = 1) => {
         password = utility.md5(CRYPT_KEY+password)
-        const user = {
-            uin : 1003,
-            accountId : 58,
-            aid: 0
+        const expires = remember*86400
+
+        let userInfo = await lps_soldier.findOne({
+            where : {
+                phone
+            }
+        })
+        if(!userInfo){
+            return {
+                status:0,
+                msg:'用户不存在'
+            }
         }
-        const now = Date.now()
-        const token = utility.md5(uniqid(now+user.uin)).toLowerCase()
-        redis.setAsync(token,JSON.stringify(user))
-        redis.expireAsync(token,now+86400)
+        if(userInfo.password != password){
+            return {
+                status:0,
+                msg:'密码错误'
+            }
+        }
+        let info = await sequelize.query("SELECT * FROM `yun_tvbc`.`user` WHERE uin=" + userInfo.uin)
+        info = _.first(info)
+        _.assign(info,userInfo)
+        const now = Math.round(Date.now() / 1000) 
+        const token = utility.md5(uniqid(now+info.uin)).toLowerCase()
+        redis.setAsync(token,JSON.stringify(info))
+        redis.expireAsync(token,expires)
 
         const payload = {
             token,
-            expires : now +  + 86400
+            expires : now + expires
         } 
 
-        const realToken = jwt.encode(payload,key)
-        return realToken
+        const realTooken = jwt.encode(payload,key)
+        return {
+            status:1,
+            msg:realTooken
+        }
     },
     liveLogin : async (phone,password) => {
         password = utility.md5(CRYPT_KEY+password)
