@@ -25,7 +25,7 @@
     "mysql": "^2.17.1",
     "mysql2": "^2.1.0",
     "nodemon": "^2.0.2",
-    "redis": "^2.8.0",
+    "redis": "^3.1.1",
     "sequelize": "^5.21.3",
     "sequelize-cli": "^5.5.1",
     "string-random": "^0.1.3",
